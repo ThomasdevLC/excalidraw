@@ -1,0 +1,98 @@
+# dora-definitions.yml : contrat d'équipe, versionné avec le code
+#
+# TD phase 0 — rempli par Thomas Le Cam (ThomasdevLC)
+# Figé le 11 septembre 2026 à 11 h 01 CEST (09 h 01 UTC).
+#
+# RÉSERVE D'HONNÊTETÉ : ce contrat a été rédigé APRÈS l'étape 2 du guide, et
+# non avant comme le prescrit la phase 0. Les décisions `deploiement.*`
+# (compte_comme_deploiement, exclut, horodatage) ont donc été prises en
+# connaissance des données. Les décisions `changement`, `incident`, `rework`,
+# `fenetre_de_reference` et `agregation` ont bien été prises à l'aveugle.
+# Voir la réponse à la question 6 du rendu.
+
+application: excalidraw   # l'application Excalidraw uniquement, ni sa doc, ni ses exemples
+
+deploiement:
+  # Support 2.3 (production seulement) + 7.1 (une vue par application).
+  # La valeur d'environment est copiée-collée depuis l'API : son séparateur est
+  # un TIRET DEMI-CADRATIN U+2013, pas un trait d'union U+002D. Retapée au
+  # clavier, elle fait renvoyer zéro déploiement sans message d'erreur.
+  compte_comme_deploiement: >-
+    déploiement dont l'environment vaut exactement "Production – excalidraw"
+    ET qui porte au moins un status 'success'
+
+  exclut:
+    - "les 4 environnements Preview – * : prévisualisations de PR, aucun utilisateur servi (support 2.3, 7.3)"
+    - "Production – docs : production réelle, mais autre application (support 7.1)"
+    - "Production – excalidraw-package-example : autre application (support 7.1)"
+    - "Production – excalidraw-package-example-with-nextjs : autre application (support 7.1)"
+    - "tout déploiement sans status 'success' : échoué, annulé ou encore en cours (support 2.5)"
+
+  # Support 5.2. Un objet deployment est une INTENTION de déployer ; le status
+  # est le RÉSULTAT. Retenir le created_at du deployment reviendrait à dater un
+  # changement qui n'est peut-être jamais arrivé en production.
+  # En cas de statuts 'success' multiples, le PREMIER fait foi.
+  horodatage: "created_at du premier status 'success' du déploiement"
+
+changement:
+  # Support 2.2 : le point de départ est le commit, pas le ticket ni la PR.
+  # Précisions que le support laisse ouvertes et que ce contrat ferme :
+  #   - committer date (%cI de git log), conformément à l'exemple du support 5.2 ;
+  #   - lot = commits présents dans le sha du déploiement N et absents de celui
+  #     du déploiement N-1, sur la branche par défaut (master chez excalidraw) ;
+  #   - un lead time par COMMIT, pas par déploiement : chaque commit du lot
+  #     hérite de l'horodatage de déploiement du lot (support 2.2, coût des
+  #     gros lots).
+  point_de_depart: >-
+    committer date (%cI) de chaque commit de la branche par défaut (master),
+    le lot étant délimité par les sha de deux déploiements consécutifs
+
+incident:
+  # Nous n'exploitons pas la production d'excalidraw : ni alerting, ni astreinte,
+  # ni post-mortem. Ce qui suit est donc un PROXY assumé, pas la métrique DORA.
+  # Ce que le proxy ne mesure pas : les dégradations non signalées par une issue,
+  # celles signalées ailleurs (Discord, Twitter), et celles jamais détectées.
+  definition: >-
+    PROXY — dégradation en production signalée par une issue publique du dépôt.
+    La métrique DORA exige une dégradation "nécessitant une intervention
+    immédiate" (support 2.4) ; une issue publique ne porte pas cette information.
+  source: "issue GitHub portant le label 'incident' (label 'bug' utilisé comme proxy dégradé en phase 3)"
+
+  # Support 2.4 : le chronomètre DORA démarre au début de la dégradation
+  # DÉTECTÉE, pas à l'ouverture du ticket. Nous n'avons pas la date de
+  # détection : nous retenons donc l'ouverture de l'issue, en sachant que
+  # l'écart entre les deux est justement une mesure de l'observabilité — mesure
+  # que nous renonçons ici à produire.
+  debut: "created_at de l'issue (approximation par défaut ; la date de détection n'est pas disponible)"
+  fin: "closed_at de l'issue, interprété comme 'service rétabli' (support 2.4 : pas 'post-mortem rédigé')"
+
+  # LE MAILLON FAIBLE (support 5.1). Aucun outil ne peut déduire ce lien :
+  # quelqu'un doit l'avoir écrit.
+  rattachement_deploiement: >-
+    ligne "caused_by: <id de déploiement>" dans le CORPS de l'issue (pas dans un
+    commentaire), renseignée par la personne qui traite l'incident.
+    Un incident sans cette ligne est compté dans aucune métrique.
+
+rework:
+  # Support 2.6 : la convention doit être décidée AVANT la collecte, sinon la
+  # donnée n'existe pas. Excalidraw n'a aucune branche hotfix/* (311 branches
+  # vérifiées) : la convention ne produira donc rien sur l'amont, et sera
+  # appliquée sur le fork en phase 4.
+  marqueur: "ref du déploiement commençant par 'hotfix/'"
+
+# Support 7.3 : 7 jours produit du bruit ingérable, l'année masque les
+# tendances. Entre 28 et 90, je retiens 90 : l'application excalidraw ne déploie
+# pas en continu, et une fenêtre de 28 jours risquerait de ne contenir qu'un ou
+# deux déploiements — trop peu pour qu'une médiane ait un sens.
+fenetre_de_reference: "90 jours glissants"
+
+# Support 2.2 et annexe B : la distribution des lead times est asymétrique à
+# droite, la moyenne est tirée par la traîne et ne décrit personne.
+agregation: "médiane (P50) pour toutes les durées, P90 publié systématiquement à côté ; taux en pourcentage"
+
+# ---------------------------------------------------------------------------
+# Phase 3 : à remplir après avoir vu les chiffres.
+# Qu'auriez-vous écrit différemment ? Ne modifiez pas les lignes ci-dessus.
+#
+# revision_envisagee: |
+#   ???
