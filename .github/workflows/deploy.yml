@@ -21,14 +21,15 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
+            const branche = context.ref.replace('refs/heads/', '');
             const deployment = await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: context.ref_name,
+              ref: branche,
               environment: 'production',
               required_contexts: [],
               auto_merge: false,
-              description: `TD DORA — ${context.ref_name}`,
+              description: 'TD DORA',
             });
             return deployment.data.id;
 
