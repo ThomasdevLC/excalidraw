@@ -1622,4 +1622,230 @@ n'immunise contre l'obsolescence, pas même l'expertise sur le sujet.
 
 ## Restitution collective
 
-> _À compléter._
+### Ce que je présente en 3 minutes
+
+**Mes chiffres de la phase 2** (excalidraw/excalidraw, fenêtre de 90 jours au
+11/09/2026, environnement `Production – excalidraw`) :
+
+| Métrique | Valeur |
+|---|---|
+| Deployment frequency | 0,167 /jour — 15 déploiements |
+| Délai médian entre deux déploiements | 4,5 jours |
+| Change lead time P50 / P90 | 43,8 h / 8,9 jours (rapport 4,9×) |
+| Base de calcul | 79 commits / 14 lots — soit 5,6 commits par lot |
+| Les trois autres | `n/a` |
+
+**La ligne de mon contrat qui explique un écart avec le binôme voisin.** Trois
+candidates, par ordre d'impact décroissant :
+
+1. `deploiement.compte_comme_deploiement` — j'ai retenu **le seul**
+   `Production – excalidraw`. Un binôme ayant retenu les quatre environnements
+   `Production` mesure 25 déploiements au lieu de 15, soit une fréquence
+   **8×** supérieure, et un lead time calculé sur une population de commits
+   entièrement différente. C'est de loin l'écart le plus lourd.
+2. `changement.point_de_depart` — committer date. Un binôme ayant choisi
+   l'*author date* obtient un lead time **plus élevé**, parce que la committer
+   date est réécrite au squash-merge et exclut donc le temps passé en revue.
+3. `fenetre_de_reference` — 90 jours. À 28 jours, la fenêtre d'excalidraw
+   contiendrait quatre ou cinq déploiements : la médiane des intervalles perdrait
+   toute robustesse.
+
+**Ce que j'aurais écrit différemment en phase 0.** Trois choses :
+
+- **J'aurais écrit le contrat avant de regarder les données**, ce que je n'ai pas
+  fait (voir la réserve en phase 0). Trois décisions sur huit en ont été
+  affectées, et la question 6 est devenue inexploitable comme point de contrôle.
+- **J'aurais précisé le périmètre d'observation dans `compte_comme_deploiement`.**
+  Ma ligne nomme un environnement, mais pas *comment* on constate qu'il est le
+  bon. Or la liste des environnements a changé entre le 6 et le 11 septembre :
+  le contrat devrait imposer de re-relever cette liste à chaque collecte.
+- **J'aurais ajouté une ligne de surveillance de l'instrumentation
+  elle-même** — par exemple « publier le nombre d'incidents déclarés à côté du
+  change fail rate ». C'est la leçon de la question 17 : sans ce garde-fou, une
+  convention morte produit un chiffre flatteur que rien ne signale.
+
+---
+
+### Discussion 1 — Deux binômes ont mesuré le même dépôt, la même semaine, avec le même outil. Pourquoi leurs chiffres diffèrent-ils ? Que dit le chapitre 5.2 de deux équipes qui n'ont pas le même contrat ?
+
+**Pourquoi ils diffèrent.** Parce que l'outil ne décide rien : il exécute un
+contrat. Le même script, lancé le même jour sur le même dépôt, produit des
+résultats différents selon les arguments qu'on lui passe — et chaque argument est
+une décision de la phase 0.
+
+Trois sources d'écart, mesurées ou mesurables sur ce TD :
+
+| Décision divergente | Effet observé |
+|---|---|
+| périmètre des environnements | 15 déploiements contre 25 (facteur 1,7), et jusqu'à 400 sans filtre (facteur 27) |
+| horodatage retenu | nul sur excalidraw (Vercel écrit les deux dates ensemble), mais réel sur un pipeline GitHub Actions |
+| fenêtre | 28 ou 90 jours changent le dénominateur et la robustesse de la médiane |
+
+À quoi s'ajoute une source qui n'est pas dans le contrat : **la date du relevé**.
+La liste des environnements d'excalidraw comptait 6 valeurs le 6 septembre et 8 le
+11. Deux binômes « de la même semaine » ne mesurent pas tout à fait le même objet.
+
+**Ce que dit le chapitre 5.2.**
+
+> Ce fichier vaut plus cher que n'importe quel dashboard. Deux équipes qui n'ont
+> pas le même contrat produisent des chiffres **non comparables** — et c'est
+> précisément la raison pour laquelle DORA déconseille d'agréger les métriques de
+> plusieurs équipes.
+
+Le mot important est **non comparables**, pas « approximativement comparables ».
+Ce n'est pas une question de marge d'erreur : les deux séries ne mesurent pas la
+même grandeur. Additionner ou moyenner deux chiffres issus de contrats différents
+produit un nombre qui ne décrit aucune des deux équipes — ce qui rejoint le piège
+« agréger toutes les équipes » de 7.3 et « comparer l'incomparable » de 7.1.
+
+**La conséquence pratique, et c'est elle qui compte pour un lead dev :** face à
+deux séries divergentes, la bonne réaction n'est pas de chercher qui a raison,
+c'est de **comparer les deux contrats**. L'écart entre les chiffres est un
+symptôme ; le diagnostic est dans le YAML. Et si deux équipes veulent des
+chiffres comparables, elles n'ont pas besoin du même outil — elles ont besoin du
+même contrat.
+
+---
+
+### Discussion 2 — Excalidraw affiche un lead time P90 plusieurs fois supérieur à sa médiane. Si vous étiez dans l'équipe, quelle serait votre première action, et quelle question poseriez-vous avant d'agir ?
+
+**La question d'abord, l'action ensuite** — et c'est délibéré : l'ordre inverse
+est le piège.
+
+**La question à poser : « quels sont, nommément, les changements du dernier
+décile ? »**
+
+Pas « pourquoi notre P90 est-il mauvais », mais « **de quoi** est-il fait ». Le
+P90 de 8,9 jours porte sur une dizaine de commits identifiables par leur sha. La
+question se résout donc en allant les lire : de quelles PR viennent-ils, qui les
+a ouvertes, quels fichiers touchent-ils, et où le temps est-il passé — attente de
+revue, attente de fusion, ou attente du déploiement suivant ?
+
+Deux raisons de commencer par là :
+
+1. **L'annexe B dit que cet écart signale une *catégorie*, pas une dégradation
+   générale** (voir question 8). Une catégorie se nomme. Tant qu'on ne l'a pas
+   nommée, toute action est un pari.
+2. **Le P50 est sain.** La moitié des changements passent en moins de deux jours.
+   Un chantier d'optimisation globale du pipeline n'améliorerait que ceux-là —
+   c'est-à-dire ceux qui n'ont pas de problème.
+
+Sur excalidraw, mes hypothèses avant vérification seraient : contributions
+externes attendant la disponibilité d'un mainteneur, synchronisations de
+traductions fusionnées par lots, PR de dépendances, ou changements touchant le
+format de fichier `.excalidraw`. Mais ce sont des hypothèses — et l'intérêt de la
+question est justement qu'elle se tranche en une heure de lecture, pas en débat.
+
+**La première action : une cartographie du flux de valeur sur cette catégorie
+seule.**
+
+Le support y renvoie explicitement (annexe B, VSM) : *« DORA vous dit que le lead
+time est de six jours ; la cartographie vous dit où les six jours sont passés. »*
+Pour chaque étape entre l'ouverture de la PR et le déploiement, relever le temps
+de travail effectif et le temps d'attente. L'annexe B avertit que l'efficacité de
+flux dépasse rarement 15 % : il est probable que l'essentiel des 8,9 jours soit
+de l'attente, et l'attente ne s'améliore pas en codant plus vite.
+
+**Une seconde action, à considérer si la cartographie ne révèle pas de catégorie
+nette** : augmenter la **cadence de déploiement**. Avec un intervalle médian de
+4,5 jours, un commit fusionné juste après un déploiement attend plusieurs jours
+sans autre cause que le calendrier. Réduire cet intervalle réduirait mécaniquement
+la traîne, sans rien changer aux pratiques de revue.
+
+**Ce que je ne ferais pas**, et qui serait le réflexe naturel :
+
+- fixer un objectif de P90 (loi de Goodhart, 7.1.1 : on découpe les gros
+  changements en petits morceaux qui passent vite, sans rien améliorer) ;
+- lire le P90 comme une alerte générale et lancer un chantier CI ;
+- chercher **qui** est responsable des changements lents. C'est l'interdit de
+  7.2, et c'est aussi une erreur d'analyse : un lead time long mesure un système
+  d'attente, pas la vitesse d'une personne.
+
+---
+
+### Discussion 3 — Vous disposez des chiffres de livraison d'un projet open source. Que pouvez-vous en conclure sur la performance de l'équipe qui le maintient ? Justifiez avec le chapitre 7.2.
+
+**Rien. Et le refus de conclure est la réponse, pas une esquive.**
+
+**Le fondement, chapitre 7.2.** L'interdit y est posé comme une question de
+**validité**, pas de sensibilité :
+
+> Elles mesurent un **système de livraison**, **pas une personne**. Un développeur
+> ne contrôle ni le processus d'approbation, ni la fiabilité de la suite de tests,
+> ni l'architecture.
+
+Et le support ajoute que la réponse de la communauté DORA à ce débat récurrent est
+constante : **« jamais, jamais, jamais »**.
+
+**Trois raisons qui s'appliquent spécifiquement à ce cas.**
+
+**1. Je n'ai mesuré que deux métriques sur cinq.** Le débit sans l'instabilité.
+Le chapitre 4.3 interdit de lire une métrique isolément, et en donne la
+démonstration avec l'anomalie de 2024 (le cluster *medium* affichant un change
+fail rate plus bas que le cluster *high*). Conclure sur la performance à partir de
+la moitié du modèle serait invalide même si tout le reste était irréprochable.
+
+**2. Un projet open source n'a pas les contraintes qu'on lui prête.** Les
+mainteneurs d'excalidraw n'ont ni astreinte, ni SLA, ni engagement de délai. Une
+fréquence de 1,2 déploiement par semaine peut être un choix parfaitement rationnel
+— le profil *« stable and methodical »* du rapport 2025 (4.4) décrit exactement
+cela : *« qualité élevée, rythme délibérément lent »*, et il représente 15 % de
+l'échantillon. Lire ce rythme comme une contre-performance serait confondre une
+mesure avec un jugement sur des objectifs que j'ignore.
+
+**3. Je ne sais pas qui est « l'équipe ».** Excalidraw mêle salariés,
+contributeurs bénévoles et contributions ponctuelles. Le piège « comparer
+l'incomparable » (7.1) vaut pour les applications ; ici c'est l'unité d'analyse
+elle-même qui n'existe pas. Un lead time de 8,9 jours au P90 peut refléter la
+disponibilité d'un bénévole le week-end, ce qui n'a aucun rapport avec de la
+performance.
+
+**Ce que je peux légitimement dire.** La distinction est celle entre décrire et
+évaluer :
+
+| Légitime | Illégitime |
+|---|---|
+| « ce projet déploie son application environ 1,2 fois par semaine » | « ce projet déploie trop peu » |
+| « la moitié des changements atteignent la production en moins de deux jours » | « cette équipe est *medium* » |
+| « il existe une catégorie de changements qui met 5× plus longtemps » | « l'équipe laisse traîner les PR » |
+| « le rattachement incident/déploiement n'est pas instrumenté » | « l'équipe ne gère pas ses incidents » |
+
+La colonne de gauche est descriptive et vérifiable. Celle de droite suppose un
+objectif que je n'ai pas, un contexte que j'ignore, et des métriques que je n'ai
+pas pu calculer.
+
+**Et le point le plus important, qui dépasse le cas open source.** Le support
+explique *pourquoi* l'interdit tient, au-delà du principe : les métriques **se
+gament instantanément dès qu'elles portent un enjeu**, et *« vous détruisez
+précisément ce que vous cherchiez à mesurer : la remontée honnête des
+incidents »*. Or ce TD en a fourni la démonstration involontaire : le maillon
+faible du modèle DORA est une **déclaration volontaire** (question 19). Une
+déclaration volontaire ne survit pas à un enjeu d'évaluation. Attacher un enjeu
+aux métriques détruit donc, littéralement, la condition technique de leur
+calcul.
+
+C'est la raison pour laquelle le refus de classer n'est pas une posture éthique
+ajoutée au modèle : **c'est une condition de fonctionnement du modèle.**
+
+---
+
+## Synthèse — ce que je retiens du TD
+
+1. **On ne mesure pas ce qu'on veut, on mesure ce que quelqu'un a écrit.** Le
+   débit se calcule sur des traces automatiques ; l'instabilité exige des
+   déclarations humaines. C'est pourquoi trois métriques sur cinq étaient
+   inaccessibles.
+2. **Le contrat de définitions vaut plus que l'outil.** Un facteur 133 séparait
+   un comptage naïf d'un comptage conforme — sur le même dépôt, le même jour, avec
+   le même script.
+3. **Un `n/a` est une information ; un `0 %` est un piège.** Notre collecteur a
+   refusé de calculer sans donnée. Un outil moins scrupuleux aurait affiché un
+   chiffre crédible et faux.
+4. **Une instrumentation a besoin qu'on surveille son propre capteur.** Le label
+   `bug` d'excalidraw est mort après 765 usages, et rien dans la donnée ne l'a
+   signalé.
+5. **Les données de livraison ne sont pas rétroactives.** C'est l'argument
+   d'antériorité qui justifie d'instrumenter tôt — et non le coût, qui est
+   dérisoire : trente secondes par incident.
+6. **Tout document écrit sur un système vivant se périme.** Le guide du TD avait
+   cinq jours et comportait déjà quatre écarts avec la réalité.
