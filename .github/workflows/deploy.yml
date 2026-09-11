@@ -1,0 +1,50 @@
+name: deploy-production
+
+on:
+  push:
+    branches:
+      - master
+      - 'hotfix/**'
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Créer l'évènement de déploiement
+        id: deployment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.ref_name,
+              environment: 'production',
+              required_contexts: [],
+              auto_merge: false,
+              description: `TD DORA — ${context.ref_name}`,
+            });
+            return deployment.data.id;
+
+      - name: Déployer
+        run: echo "déploiement de ${{ github.sha }} sur production"
+
+      - name: Marquer le déploiement comme réussi
+        if: success()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'success',
+              environment: 'production',
+              description: 'Deployment has completed',
+            });
